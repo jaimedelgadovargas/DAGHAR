@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import interpolate
 from natsort import natsorted
 from zipfile import ZipFile
+import os
 
 
 # Set the seed for reproducibility
