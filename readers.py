@@ -659,8 +659,8 @@ def real_world_organize():
         List of users that you want to read
     """
     # Path to organize the dataset and the root of the dataset
-    workspace = Path("../data/processed/RealWorld")
-    root = Path("../data/original/RealWorld/realworld2016_dataset")
+    workspace = Path("data/processed/RealWorld")
+    root = Path("data/original/RealWorld/realworld2016_dataset")
 
     # List of users and activities
     users = natsorted(os.listdir(root))
