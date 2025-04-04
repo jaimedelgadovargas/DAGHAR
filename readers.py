@@ -909,7 +909,7 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 df_acc = df_acc[["timestamp-server-accel", "Value 1", "Value 2", "Value 3"]].copy()
                 df_acc.columns = ["timestamp-server-accel", "accel-x", "accel-y", "accel-z"]
                 df_acc["user"] = user
-                df_acc["pos"] = pos
+                df_acc["position"] = pos
             except Exception:
                 continue
             
