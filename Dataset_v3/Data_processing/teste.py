@@ -132,4 +132,4 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
         df_final = pd.DataFrame()
     
     print("Processamento concluído.")
-    return df_final, dfs
+    return df_final

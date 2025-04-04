@@ -31,13 +31,13 @@ standard_activity_code_realworld_map: Dict[str, int] = {
     activity: maping[tasks.index(activity)] for activity in tasks
 }
 
-
 column_group: Dict[str, str] = {
     "KuHar": "csv",
     "MotionSense": "csv",
     "WISDM": ["user", "activity code", "window"],
     "UCI": ["user", "activity code", "serial"],
     "RealWorld": ["user", "activity code", "position"],
+    "HIAAC": ["user", "csv", "trial", "activity code", "position"],
 }
 
 standard_activity_code_map: Dict[str, Dict[Union[str, int], int]] = {
@@ -97,6 +97,20 @@ standard_activity_code_map: Dict[str, Dict[Union[str, int], int]] = {
         12: -1,  # lie to stand
     },
     "RealWorld": standard_activity_code_realworld_map,
+    "HIAAC": {
+        0: 1,    # STANDING -> 1 (stand)
+        1: 0,    # SITTING -> 0 (sit)
+        2: 2,    # W_SPONT/WALKING_SPONTANEOUS -> 2 (walk)
+        3: 3,    # UPSTAIRS -> 3 (stair up)
+        4: 4,    # DOWNSTAIRS -> 4 (stair down)
+        5: -1,   # W_FAST -> -1 (removido)
+        6: 5,    # RUN -> 5 (run)
+        7: -1,   # ELEV_UP -> -1 (removido)
+        8: -1,   # ELEV_DOWN -> -1 (removido)
+        9: 2,   # W_IN_DOOR -> -1 (removido)
+        10: 2,   # w_DISTRACTED -> 5 (run)
+        -1: -1,  # REMOVE -> -1 (removido)
+    },
 }
 
 standard_activity_code_names: Dict[int, str] = {
@@ -122,6 +136,7 @@ columns_to_rename = {
     "WISDM": None,
     "UCI": None,
     "RealWorld": None,
+    "HIAAC": None,
 }
 
 feature_columns: Dict[str, List[str]] = {
@@ -142,14 +157,8 @@ feature_columns: Dict[str, List[str]] = {
     ],
     "WISDM": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
     "UCI": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
-    "RealWorld": [
-        "accel-x",
-        "accel-y",
-        "accel-z",
-        "gyro-x",
-        "gyro-y",
-        "gyro-z",
-    ],
+    "RealWorld": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
+    "HIAAC": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
 }
 
 match_columns: Dict[str, List[str]] = {
@@ -161,12 +170,12 @@ match_columns: Dict[str, List[str]] = {
     "RealWorld_thigh": ["user", "window", "activity code", "position"],
     "RealWorld_upperarm": ["user", "window", "activity code", "position"],
     "RealWorld_waist": ["user", "window", "activity code", "position"],
+    "HIAAC": ["user", "csv", "trial", "activity code", "position"],
 }
-
 
 # Pipelines to preprocess the datasets
 pipelines: Dict[str, Dict[str, Pipeline]] = {
-    # Kuhar Pipelines
+    # KuHar Pipelines
     "KuHar": {
         # KuHar Raw
         "raw_dataset": Pipeline(
@@ -288,7 +297,7 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
     },
     # UCI Pipelines
     "UCI": {
-        # UCI raw
+        # UCI Raw
         "raw_dataset": Pipeline(
             [
                 Windowize(
@@ -328,7 +337,7 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
     },
     # RealWorld Pipelines
     "RealWorld": {
-        # + RealWorld Raw
+        # RealWorld Raw
         "raw_dataset": Pipeline(
             [
                 Windowize(
@@ -342,7 +351,7 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
                 ),
             ]
         ),
-        # + RealWorld standardized dataset 20hz with poly resample
+        # RealWorld standardized dataset 20hz with poly resample
         "standardized": Pipeline(
             [
                 ButterworthFilter(
@@ -363,6 +372,44 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
                 ),
                 AddStandardActivityCode(
                     standard_activity_code_map["RealWorld"]
+                ),
+            ]
+        ),
+    },
+
+    # HIAAC Pipelines - Adicionado sem modificar a base
+    "HIAAC": {
+        "raw_dataset": Pipeline(
+            [
+                Windowize(
+                    features_to_select=feature_columns["HIAAC"],
+                    samples_per_window=300,
+                    samples_per_overlap=0,
+                    groupby_column=column_group["HIAAC"],
+                ),
+                AddStandardActivityCode(standard_activity_code_map["HIAAC"]),
+            ]
+        ),
+        "standardized": Pipeline(
+            [
+                ButterworthFilter(
+                    axis_columns=["accel-x", "accel-y", "accel-z"],
+                    fs=100,
+                ),
+                ResamplerPoly(
+                    features_to_select=feature_columns["HIAAC"],
+                    up=2, # 20htrz
+                    down=10, #100Hrtz
+                    groupby_column=column_group["HIAAC"],
+                ),
+                Windowize(
+                    features_to_select=feature_columns["HIAAC"],
+                    samples_per_window=60,
+                    samples_per_overlap=0,
+                    groupby_column=column_group["HIAAC"],
+                ),
+                AddStandardActivityCode(
+                    standard_activity_code_map["HIAAC"]
                 ),
             ]
         ),
