@@ -23,6 +23,7 @@ random.seed(42)
 # pd.np.random.seed(42)
 
 from readers import (
+    read_hiacc_smartphone,
     read_kuhar,
     read_motionsense,
     read_wisdm,
@@ -67,6 +68,7 @@ from readers import (
 
 # Dictionary of dataset paths
 dataset_paths: Dict[str, str] = {
+    "HIAAC": "HIAAC/",
     "KuHar": "KuHar/1.Raw_time_domian_data",
     "MotionSense": "MotionSense/A_DeviceMotion_data",
     "WISDM": "WISDM/wisdm-dataset/raw/phone",
@@ -76,6 +78,7 @@ dataset_paths: Dict[str, str] = {
 
 # Dictionary with datasets and their respesctive reader functions
 dataset_readers: Dict[str, callable] = {
+    "HIAAC": read_hiacc_smartphone,
     "KuHar": read_kuhar,
     "MotionSense": read_motionsense,
     "WISDM": read_wisdm,
@@ -346,11 +349,7 @@ def main(datasets_to_process: List[str], output_path: str):
 
 if __name__ == "__main__":    
     choices = [
-        "KuHar",
-        "MotionSense",
-        "WISDM",
-        "UCI",
-        "RealWorld",
+       "HIAAC"      
     ]
     
     parser = argparse.ArgumentParser(description="Dataset Generator")
