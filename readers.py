@@ -878,19 +878,18 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
     for pos in positions:
         pos_path = hiacc_path / pos
         if not pos_path.exists():
+            print(f"A pasta {pos_path} não existe. Pulando...")
             continue
         
         for user_folder in sorted(pos_path.iterdir()):
             if not user_folder.is_dir():
+                print(f"{user_folder} não é uma pasta. Pulando...")
                 continue
             try:
                 user = int(user_folder.name)
             except ValueError:
-                continue
-            # Processa apenas o usuário 1 para depuração
-            if user != 1:
-                continue
-            
+                print(f"Nome da pasta {user_folder} não é um número. Pulando...")
+                continue            
             # Define os arquivos conforme a posição
             if pos == "Bolso_direito":
                 acc_file = user_folder / "Accelerometer_Bolso Direito.csv"
@@ -899,8 +898,10 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 acc_file = user_folder / "Accelerometer_Mochila.csv"
                 gyr_file = user_folder / "Gyroscope_Mochila.csv"
             else:
+                print(f"Posição {pos} não reconhecida. Pulando...")
                 continue
             if not acc_file.exists() or not gyr_file.exists():
+                print(f"Arquivos {acc_file} ou {gyr_file} não existem. Pulando...")
                 continue
             
             try:
@@ -911,6 +912,7 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 df_acc["user"] = user
                 df_acc["position"] = pos
             except Exception:
+                print(f"Erro ao ler o arquivo {acc_file}. Pulando...")
                 continue
             
             try:
@@ -919,6 +921,7 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 df_gyr = df_gyr[["timestamp-server-gyro", "Value 1", "Value 2", "Value 3"]].copy()
                 df_gyr.columns = ["timestamp-server-gyro", "gyro-x", "gyro-y", "gyro-z"]
             except Exception:
+                print(f"Erro ao ler o arquivo {gyr_file}. Pulando...")
                 continue
             
             # Ajusta para que o giroscópio tenha o mesmo número de amostras que o acelerômetro
@@ -933,14 +936,17 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
             # Leitura do arquivo de labels
             label_file = user_folder / f"{user_folder.name}_label_vitor.csv"
             if not label_file.exists():
+                print(f"Arquivo de labels {label_file} não existe. Pulando...")
                 continue
             try:
                 df_label = pd.read_csv(label_file)
                 if "L" not in df_label.columns:
+                    print(f"Coluna 'L' não encontrada no arquivo {label_file}. Pulando...")
                     continue
                 df_label["L"] = df_label["L"].astype(str).str.strip()
                 df_label["activity code"] = df_label["L"]
             except Exception:
+                print(f"Erro ao ler o arquivo {label_file}. Pulando...")
                 continue
             
             # Define número de janelas (cada janela = 300 amostras)
@@ -948,7 +954,6 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
             df_acc = df_acc.iloc[:num_windows * 300].reset_index(drop=True)
             df_gyr = df_gyr.iloc[:num_windows * 300].reset_index(drop=True)
             df_label = df_label.iloc[:num_windows].reset_index(drop=True)
-            
             # Cria a coluna 'trial' para identificar cada janela
             df_acc["trial"] = df_acc.index // 300            
                      
@@ -966,10 +971,12 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 data_df_final = data_df[["timestamp-server-accel", "timestamp-server-gyro",
                                          "accel-x", "accel-y", "accel-z",
                                          "gyro-x", "gyro-y", "gyro-z", "position", "activity code", "trial", "user"]].copy()
+                data_df_final = data_df_final.astype({'activity code':'int'})
+
 
             except Exception:
+                print(f"Erro ao combinar os dados dos sensores para o usuário {user} e atividade. Pulando...")
                 continue
-            
             dfs.append(data_df_final)
     
     if dfs:
