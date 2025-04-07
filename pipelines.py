@@ -170,7 +170,7 @@ match_columns: Dict[str, List[str]] = {
     "RealWorld_thigh": ["user", "window", "activity code", "position"],
     "RealWorld_upperarm": ["user", "window", "activity code", "position"],
     "RealWorld_waist": ["user", "window", "activity code", "position"],
-    "HIAAC": ["user", "trial", "activity code", "position"],
+    "HIAAC": ["user", "window", "trial", "activity code", "position"],
 }
 
 # Pipelines to preprocess the datasets

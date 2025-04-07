@@ -918,7 +918,6 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 df_gyr["timestamp-server-gyro"] = df_gyr["Timestamp Server"].astype(np.int64)
                 df_gyr = df_gyr[["timestamp-server-gyro", "Value 1", "Value 2", "Value 3"]].copy()
                 df_gyr.columns = ["timestamp-server-gyro", "gyro-x", "gyro-y", "gyro-z"]
-                df_gyr["user"] = user
             except Exception:
                 continue
             
@@ -958,17 +957,20 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
                 # Merge dos labels com o acelerômetro (inner on "trial")
                 df_acc = df_acc.merge(
                 df_label[["activity code"]].reset_index().rename(columns={"index": "trial"}),
-                on="trial",
+                on= "trial",
                 how="inner"
                 ).reset_index(drop=True)
 
                 # Combina os dados dos sensores
                 data_df = pd.concat([df_acc, df_gyr], axis=1)
+                data_df_final = data_df[["timestamp-server-accel", "timestamp-server-gyro",
+                                         "accel-x", "accel-y", "accel-z",
+                                         "gyro-x", "gyro-y", "gyro-z", "position", "activity code", "trial", "user"]].copy()
 
             except Exception:
                 continue
             
-            dfs.append(data_df)
+            dfs.append(data_df_final)
     
     if dfs:
         df_final = pd.concat(dfs, ignore_index=True)
