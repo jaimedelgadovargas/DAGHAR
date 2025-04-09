@@ -37,7 +37,7 @@ column_group: Dict[str, str] = {
     "WISDM": ["user", "activity code", "window"],
     "UCI": ["user", "activity code", "serial"],
     "RealWorld": ["user", "activity code", "position"],
-    "HIAAC": ["user", "trial", "activity code", "position"],
+    "HIAAC": ["user", "activity code", "position"],
 }
 
 standard_activity_code_map: Dict[str, Dict[Union[str, int], int]] = {
@@ -170,7 +170,7 @@ match_columns: Dict[str, List[str]] = {
     "RealWorld_thigh": ["user", "window", "activity code", "position"],
     "RealWorld_upperarm": ["user", "window", "activity code", "position"],
     "RealWorld_waist": ["user", "window", "activity code", "position"],
-    "HIAAC": ["user", "window", "trial", "activity code", "position"],
+    "HIAAC": ["user", "window", "activity code", "position"],
 }
 
 # Pipelines to preprocess the datasets
