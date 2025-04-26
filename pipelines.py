@@ -31,6 +31,7 @@ standard_activity_code_realworld_map: Dict[str, int] = {
     activity: maping[tasks.index(activity)] for activity in tasks
 }
 
+
 column_group: Dict[str, str] = {
     "KuHar": "csv",
     "MotionSense": "csv",
@@ -157,7 +158,14 @@ feature_columns: Dict[str, List[str]] = {
     ],
     "WISDM": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
     "UCI": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
-    "RealWorld": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
+    "RealWorld": [
+        "accel-x",
+        "accel-y",
+        "accel-z",
+        "gyro-x",
+        "gyro-y",
+        "gyro-z",
+    ],
     "HIAAC": ["accel-x", "accel-y", "accel-z", "gyro-x", "gyro-y", "gyro-z"],
 }
 
@@ -171,11 +179,17 @@ match_columns: Dict[str, List[str]] = {
     "RealWorld_upperarm": ["user", "window", "activity code", "position"],
     "RealWorld_waist": ["user", "window", "activity code", "position"],
     "HIAAC": ["user", "window", "activity code", "position"],
+    "HIAAC_CrossBag":   ["user", "window", "activity code", "position"],
+    "HIAAC_LeftPocket": ["user", "window", "activity code", "position"],
+    "HIAAC_RightHand":  ["user", "window", "activity code", "position"],
+    "HIAAC_LeftHand":  ["user", "window", "activity code", "position"],
+    "HIAAC_RightPocket":["user", "window", "activity code", "position"],
 }
+
 
 # Pipelines to preprocess the datasets
 pipelines: Dict[str, Dict[str, Pipeline]] = {
-    # KuHar Pipelines
+    # Kuhar Pipelines
     "KuHar": {
         # KuHar Raw
         "raw_dataset": Pipeline(
@@ -297,7 +311,7 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
     },
     # UCI Pipelines
     "UCI": {
-        # UCI Raw
+        # UCI raw
         "raw_dataset": Pipeline(
             [
                 Windowize(
@@ -337,7 +351,7 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
     },
     # RealWorld Pipelines
     "RealWorld": {
-        # RealWorld Raw
+        # + RealWorld Raw
         "raw_dataset": Pipeline(
             [
                 Windowize(
@@ -351,7 +365,7 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
                 ),
             ]
         ),
-        # RealWorld standardized dataset 20hz with poly resample
+        # + RealWorld standardized dataset 20hz with poly resample
         "standardized": Pipeline(
             [
                 ButterworthFilter(
@@ -376,8 +390,6 @@ pipelines: Dict[str, Dict[str, Pipeline]] = {
             ]
         ),
     },
-
-    # HIAAC Pipelines - Adicionado sem modificar a base
     "HIAAC": {
         "raw_dataset": Pipeline(
             [

@@ -847,7 +847,7 @@ def sanity_function(train_df, val_df, test_df):
     print(f"Users in test: {test_df['user'].unique()}\n")
 
 
-def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
+def read_hiacc_smartphone_V1(hiacc_path: str) -> pd.DataFrame:
     """
     Parâmetros
     ----------
@@ -986,3 +986,165 @@ def read_hiacc_smartphone(hiacc_path: str) -> pd.DataFrame:
     
     print("Processamento concluído.")
     return df_final
+
+def read_hiacc_smartphone(hiaac_path: str) -> pd.DataFrame:
+    """
+    Read the HIAAC dataset (all sensor variants + shared labels) and return a single DataFrame.
+
+    The returned DataFrame has columns:
+        - timestamp-server-accel, timestamp-server-gyro
+        - accel-x, accel-y, accel-z
+        - gyro-x, gyro-y, gyro-z
+        - position      # e.g. 'RightPocket', 'CrossBag', etc.
+        - activity code
+        - trial
+        - user
+
+    Parameters
+    ----------
+    hiaac_path : str
+        Root path to the HIAAC dataset. Expects subfolders:
+            {user_id}/accelerometer_*.csv
+                      /gyroscope_*.csv
+        plus a sibling `Label/{user_id}/Annotations.csv` for each user.
+
+    Returns
+    -------
+    pd.DataFrame
+        Concatenated data from all users and all sensor variants.
+    """
+    root = Path(hiaac_path)
+    all_dfs: List[pd.DataFrame] = []
+    print("Starting to read the HIAAC dataset...")
+
+    # label mapping dictionary
+    label_map = {
+        "STANDING":               0,
+        "SITTING":                1,
+        "W_SPONT":                2,
+        "WALKING_SPONTANEOUS":    2,
+        "UPSTAIRS":               3,
+        "DOWNSTAIRS":             4,
+        "W_FAST":                 5,
+        "RUN":                    6,
+        "ELEV_UP":                7,
+        "ELEVATOR_UP":            7,
+        "ELEV_DOWN":              8,
+        "ELEVATOR_DOWN":          8,
+        "W_IN_DOOR":              9,
+        "w_DISTRACTED":          10,
+        "-1":                -1,
+    }
+
+    # Iterate over each user folder
+    for user_folder in sorted(root.iterdir()):
+        if not user_folder.is_dir():
+            continue
+        try:
+            user = int(user_folder.name)
+        except ValueError:
+            continue
+
+        # --- load and map this user's labels once ---
+        label_path = root / "Label" / user_folder.name / "Annotations.csv"
+        if not label_path.exists():
+            print(f"Labels file not found for user {user}: {label_path}")
+            continue
+        try:
+            df_label = pd.read_csv(label_path)
+            if "pro_label" not in df_label.columns:
+                print(f"Column 'pro_label' missing in {label_path.name}.")
+                continue
+
+            df_label["pro_label"] = df_label["pro_label"].astype(str).str.strip()
+            df_label["activity code"] = df_label["pro_label"].map(label_map)
+            
+            df_label["activity code"] = df_label["activity code"].astype(int)
+
+
+        except Exception as e:
+            print(f"Error reading labels for user {user}: {e}")
+            continue
+
+        # --- find all accelerometer files for this user ---
+        acc_files = sorted(user_folder.glob("accelerometer_*.csv"))
+        if not acc_files:
+            print(f"No accelerometer files in {user_folder}.")
+            continue
+
+        for acc_file in acc_files:
+            variant = acc_file.stem.split("_", 1)[1]  # e.g. 'RightPocket'
+            if variant == "Annotator" or variant == "LeftHand":
+                continue
+            gyr_file = user_folder / f"gyroscope_{variant}.csv"
+            if not gyr_file.exists():
+                print(f"Missing gyro file for {variant} of user {user}.")
+                continue
+
+            # read accelerometer
+            try:
+                df_acc = pd.read_csv(acc_file, engine="python")
+                df_acc["timestamp-server-accel"] = df_acc["Timestamp Server"].astype(np.int64)
+                df_acc = df_acc[
+                    ["timestamp-server-accel", "Value 1", "Value 2", "Value 3"]
+                ].copy()
+                df_acc.columns = ["timestamp-server-accel", "accel-x", "accel-y", "accel-z"]
+                df_acc["user"] = user
+                df_acc["position"] = f"HIAAC_{variant}"
+            except Exception as e:
+                print(f"Error reading {acc_file.name}: {e}")
+                continue
+
+            # read gyroscope
+            try:
+                df_gyr = pd.read_csv(gyr_file, engine="python")
+                df_gyr["timestamp-server-gyro"] = df_gyr["Timestamp Server"].astype(np.int64)
+                df_gyr = df_gyr[
+                    ["timestamp-server-gyro", "Value 1", "Value 2", "Value 3"]
+                ].copy()
+                df_gyr.columns = ["timestamp-server-gyro", "gyro-x", "gyro-y", "gyro-z"]
+            except Exception as e:
+                print(f"Error reading {gyr_file.name}: {e}")
+                continue
+
+            # align lengths and normalize timestamps
+            min_len = min(len(df_acc), len(df_gyr))
+            df_acc = df_acc.iloc[:min_len].reset_index(drop=True)
+            df_gyr = df_gyr.iloc[:min_len].reset_index(drop=True)
+            df_acc["timestamp-server-accel"] -= df_acc["timestamp-server-accel"].iloc[0]
+            df_gyr["timestamp-server-gyro"] -= df_gyr["timestamp-server-gyro"].iloc[0]
+
+            # windowing: 300 samples per trial
+            num_windows = min(len(df_acc) // 300, len(df_label))
+            df_acc = df_acc.iloc[: num_windows * 300].reset_index(drop=True)
+            df_gyr = df_gyr.iloc[: num_windows * 300].reset_index(drop=True)
+            df_label_slice = df_label.iloc[:num_windows * 300].reset_index(drop=True)
+
+            df_acc["trial"] = df_acc.index // 300
+
+            # merge and finalize
+            try:
+                
+                combined = pd.concat([df_acc, df_gyr], axis=1)
+                
+                merged = pd.concat([combined, df_label_slice], axis=1)
+                
+                final = merged[[
+                    "timestamp-server-accel", "timestamp-server-gyro",
+                    "accel-x", "accel-y", "accel-z",
+                    "gyro-x", "gyro-y", "gyro-z",
+                    "position", "activity code", "trial", "user"
+                ]].copy()
+                final = final.astype({"activity code": "int"})
+                all_dfs.append(final)
+            except Exception as e:
+                print(f"Error combining data for user {user}, variant {variant}: {e}")
+                continue
+
+    if all_dfs:
+        df_all = pd.concat(all_dfs, ignore_index=True)
+    else:
+        df_all = pd.DataFrame()
+
+    print("Processing completed.")
+    return df_all

@@ -23,7 +23,6 @@ random.seed(42)
 # pd.np.random.seed(42)
 
 from readers import (
-    read_hiacc_smartphone,
     read_kuhar,
     read_motionsense,
     read_wisdm,
@@ -31,6 +30,7 @@ from readers import (
     read_realworld,
     sanity_function,
     real_world_organize,
+    read_hiacc_smartphone,
 )
 
 """This module is used to generate the datasets. The datasets are generated in the following steps:    
@@ -68,22 +68,22 @@ from readers import (
 
 # Dictionary of dataset paths
 dataset_paths: Dict[str, str] = {
-    "HIAAC": "HIAAC/",
     "KuHar": "KuHar/1.Raw_time_domian_data",
     "MotionSense": "MotionSense/A_DeviceMotion_data",
     "WISDM": "WISDM/wisdm-dataset/raw/phone",
     "UCI": "UCI/RawData",
     "RealWorld": "RealWorld/realworld2016_dataset",
+    "HIAAC":"HIAAC"
 }
 
 # Dictionary with datasets and their respesctive reader functions
 dataset_readers: Dict[str, callable] = {
-    "HIAAC": read_hiacc_smartphone,
     "KuHar": read_kuhar,
     "MotionSense": read_motionsense,
     "WISDM": read_wisdm,
     "UCI": read_uci,
     "RealWorld": read_realworld,
+    "HIAAC": read_hiacc_smartphone,
 }
 
 # Preprocess the datasets
@@ -201,9 +201,16 @@ def generate_views(
     dataset : str
         The dataset name.
     """
+    print(f"Generating the views for {dataset} ...\n")
+    print(f"new_df shape: {new_df.shape}")
+    print(f"new_df_standardized shape: {new_df_standardized.shape}")
+    print(f"dataset: {dataset}")
+    print(f"path_balanced: {path_balanced}")
+    print(f"path_balanced_standardized: {path_balanced_standardized}")
 
     # Filter the datasets by equal elements
     filter_common = FilterByCommonRows(match_columns=match_columns[dataset])
+    
     new_df, new_df_standardized = filter_common(new_df, new_df_standardized)
 
     # Preprocess and save the raw balanced dataset per activity
@@ -222,7 +229,7 @@ def generate_views(
 
 
 def main(datasets_to_process: List[str], output_path: str):
-    """This is the main function to generate the datasets. It will loop through
+    """This is the main function to geHIAAC_CrossBagnerate the datasets. It will loop through
     and their respective pipelines to generate the datasets.
 
     Parameters
@@ -300,6 +307,53 @@ def main(datasets_to_process: List[str], output_path: str):
                     )
                     traceback.print_exc()
                     continue
+        elif dataset == "HIAAC":
+            print(f"Preprocess the raw dataset: {dataset}\n")
+            # reading path
+            path = Path(f"data/original/{dataset_paths[dataset]}")
+            raw_dataset = reader(str(path))
+
+            # raw pipeline
+            new_df = pipelines[dataset]["raw_dataset"](raw_dataset)
+            
+            try:
+                for view_name, pipe_fn in pipelines[dataset].items():
+                    if "standardized" not in view_name:
+                        continue
+                    print(f"Preprocess the dataset {dataset} with {view_name} ...\n")
+                    new_df_std = pipe_fn(raw_dataset)
+
+                    # filter out activity code -1
+                    df_raw = new_df[new_df["standard activity code"] != -1]
+                    df_std = new_df_std[new_df_std["standard activity code"] != -1]
+
+                    # generate general views
+                    generate_views(
+                        df_raw,
+                        df_std,
+                        dataset,
+                        path_balanced=output_path / "raw_balanced",
+                        path_balanced_standardized=output_path / f"{view_name}_balanced",
+                    )
+
+                    # generate views per position
+                    for pos in df_raw["position"].unique():
+                        sub_raw = df_raw[df_raw["position"] == pos]
+                        sub_std = df_std[df_std["position"] == pos]
+                        dataset_pos = f"{pos}"
+                        generate_views(
+                            sub_raw,
+                            sub_std,
+                            dataset_pos,
+                            path_balanced=output_path / "raw_balanced",
+                            path_balanced_standardized=output_path / f"{view_name}_balanced",
+                        ) 
+            except Exception as e:
+                print(
+                    f"Error generating the view {view_name} for {dataset}: {e}"
+                )
+                traceback.print_exc()
+                continue           
         else:
             path = Path(f"data/original/{dataset_paths[dataset]}")
             raw_dataset = reader(path)
@@ -322,6 +376,7 @@ def main(datasets_to_process: List[str], output_path: str):
                         new_df_standardized = new_df_standardized[
                             new_df_standardized["standard activity code"] != -1
                         ]
+                        
                         
                         generate_views(
                             new_df,
@@ -349,7 +404,12 @@ def main(datasets_to_process: List[str], output_path: str):
 
 if __name__ == "__main__":    
     choices = [
-       "HIAAC"      
+        "KuHar",
+        "MotionSense",
+        "WISDM",
+        "UCI",
+        "RealWorld",
+        "HIAAC",
     ]
     
     parser = argparse.ArgumentParser(description="Dataset Generator")
